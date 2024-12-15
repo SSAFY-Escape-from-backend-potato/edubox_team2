@@ -1,5 +1,5 @@
 package com.backend_potato.edubox_team2.global.jwt;
-import com.backend_potato.edubox_team2.User;
+import com.backend_potato.edubox_team2.domain.users.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;

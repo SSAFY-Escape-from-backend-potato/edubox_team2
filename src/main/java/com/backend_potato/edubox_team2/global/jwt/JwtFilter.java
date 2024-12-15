@@ -1,6 +1,6 @@
 package com.backend_potato.edubox_team2.global.jwt;
 
-import com.backend_potato.edubox_team2.User;
+import com.backend_potato.edubox_team2.domain.users.entity.User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,9 +34,11 @@ public class JwtFilter extends OncePerRequestFilter {
             String nickname = jwtTokenUtil.getUserNicknameFromToken(accessToken);
             String role = jwtTokenUtil.getUserRoleFromToken(accessToken);
 
-            User user = new User();
-            user.setEmail(userEmail);
-            user.setNickname(nickname);
+            User user = User.builder()
+                    .email(userEmail)
+                    .nickname(nickname)
+                    .build();
+
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     user, null, AuthorityUtils.createAuthorityList(role)
