@@ -1,0 +1,78 @@
+package com.backend_potato.edubox_team2.domain.users.service;
+
+import com.backend_potato.edubox_team2.domain.users.entity.*;
+import com.backend_potato.edubox_team2.domain.users.repository.UserRepository;
+import com.backend_potato.edubox_team2.global.aws.S3ImageUploader;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class UserServiceImpl implements UserService {
+    private final UserRepository userRepository;
+    private final S3ImageUploader s3ImageUploader;
+    private final EmailService emailService;
+    private static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";
+
+    //private final JWTUtil jwtUtil;
+    //private final BCryptPasswordEncoder bCryptPasswordEncoder;
+
+    @Transactional
+    @Override
+    public void createUser(SignupRequestDTO signupRequestDTO) {
+        if (!signupRequestDTO.getEmail().matches(EMAIL_REGEX)) {
+            throw new IllegalArgumentException("이메일 형식이 유효하지 않습니다.");
+        }
+        if (userRepository.existsByEmail(signupRequestDTO.getEmail())) {
+            throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
+        }
+        if (!signupRequestDTO.getPw().equals(signupRequestDTO.getConfirmPw())) {
+            throw new IllegalArgumentException("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+        }
+        boolean isCodeValid = emailService.verifyCode(signupRequestDTO.getEmail(), signupRequestDTO.getVerificationCode());
+        if (!isCodeValid) {
+            throw new IllegalArgumentException("Invalid verification code.");
+        }
+        String encodedPassword = BCrypt.hashpw(signupRequestDTO.getPw(), BCrypt.gensalt());
+        User user = User.builder()
+                .email(signupRequestDTO.getEmail())
+                .pw(encodedPassword)
+                .nickname(signupRequestDTO.getEmail().split("@")[0])
+                .role(Role.USER)
+                .build();
+        userRepository.save(user);
+    }
+
+    @Transactional
+    @Override
+    public String getUserByEmailAndPw(LoginRequestDTO loginRequestDTO) {
+        User user = userRepository.findByEmail(loginRequestDTO.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 잘못되었습니다."));
+        if (!BCrypt.checkpw(loginRequestDTO.getPw(), user.getPw())) {
+            throw new IllegalArgumentException("이메일 또는 비밀번호가 잘못되었습니다.");
+        }
+        String token = "토큰";
+        //String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        log.info("사용자 {}({})가 로그인했습니다.", user.getNickname(), user.getEmail());
+
+        return token;
+    }
+
+    @Override
+    public void updateProfile(MultipartFile image, ProfileUpdateRequestDTO profileUpdateRequestDTO){
+
+    }
+
+
+
+//    @Override
+//    public void logout(String token) {
+//        jwtUtil.invalidateToken(token);
+//        log.info("토큰이 로그아웃되었습니다: {}", token);
+//    }
+}
