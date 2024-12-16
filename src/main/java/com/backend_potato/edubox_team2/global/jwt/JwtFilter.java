@@ -27,6 +27,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Override
     public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
+        String requestURI = request.getRequestURI();
+        if (requestURI.startsWith("/swagger-ui") || requestURI.startsWith("/v3/api-docs") ||
+                requestURI.startsWith("/swagger-resources") || requestURI.startsWith("/api/user/login") ||
+                requestURI.startsWith("/api/user/signup") || requestURI.startsWith("/api/user/verify-code")
+                || requestURI.startsWith("/api/user/send-verification")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         String accessToken = resolveToken(request);
 
         if(accessToken != null && jwtTokenUtil.isValidToken(accessToken)){

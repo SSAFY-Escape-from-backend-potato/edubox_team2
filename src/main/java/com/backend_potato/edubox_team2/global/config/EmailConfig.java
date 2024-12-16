@@ -32,6 +32,11 @@ public class EmailConfig {
     @Value("${spring.mail.properties.mail.smtp.timeout}")
     private int timeout;
 
+//    @Bean
+//    public EmailService emailService(){
+//        return new EmailServiceImpl(javaMailSender());
+//    }
+
     @Bean
     public JavaMailSender javaMailSender(){
         JavaMailSenderImpl javaMailSender = new JavaMailSenderImpl();
@@ -46,9 +51,9 @@ public class EmailConfig {
 
     private Properties getMailProperties(){
         Properties properties = new Properties();
-        properties.put("mail.smtp.host", host);
-        properties.put("mail.smtp.port", port);
-        properties.put("mail.smtp.ssl.trust", host);
+        properties.put("mail.smtp.host", "smtp.gmail.com");
+        properties.put("mail.smtp.port", "587");
+        properties.put("mail.smtp.ssl.trust", "smtp.gmail.com");
         properties.put("mail.smtp.auth", auth);
         properties.put("mail.smtp.starttls.enable", starttlsEnable);
         properties.put("mail.smtp.starttls.required", starttlsRequired);

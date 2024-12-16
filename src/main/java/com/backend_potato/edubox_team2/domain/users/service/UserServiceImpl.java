@@ -10,6 +10,10 @@ import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -18,7 +22,7 @@ public class UserServiceImpl implements UserService {
     private final S3ImageUploader s3ImageUploader;
     private final EmailService emailService;
     private static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";
-
+    private final Map<String, String> accessTokenStore = new ConcurrentHashMap<>();
     //private final JWTUtil jwtUtil;
     //private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
@@ -68,6 +72,32 @@ public class UserServiceImpl implements UserService {
 
     }
 
+    @Override
+    public void storeAccessToken(String email, String accessToken) {
+        accessTokenStore.put(email, accessToken);
+    }
+
+    @Override
+    public boolean isValidAccessToken(String accessToken) {
+        return accessTokenStore.containsValue(accessToken);
+    }
+
+    @Override
+    public User authenticate(LoginRequestDTO loginRequestDTO) {
+        Optional<User> optionalUser = userRepository.findByEmail(loginRequestDTO.getEmail());
+        if (optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            if (BCrypt.checkpw(loginRequestDTO.getPw(), user.getPw())) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public void removeAccessToken(String accessToken) {
+        accessTokenStore.values().removeIf(token -> token.equals(accessToken));
+    }
 
 
 //    @Override
