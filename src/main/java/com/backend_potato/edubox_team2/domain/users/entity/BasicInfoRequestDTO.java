@@ -4,13 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProfileUpdateRequestDTO {
-    //private String image;
-    private String nickname;
-    private String profileAddress;
-    private String discription ;
+public class BasicInfoRequestDTO {
+    private String email;
+    private String pw;
+    private String checkPw;
+    private String phone;
 }

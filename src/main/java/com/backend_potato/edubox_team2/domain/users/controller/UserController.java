@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,17 +30,15 @@ public interface UserController {
     @PostMapping("/login")
     ResponseEntity<String> getUserByEmailAndPw(@RequestBody @Valid LoginRequestDTO loginRequestDTO, HttpServletResponse response);
 
-    @Operation(summary="프로필 업데이트", description= "프로필 업데이트 시 사용되는 api입니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "프로필 업데이트에 성공하였습니다."),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다.", content = @Content(mediaType = "application/json")),
-            @ApiResponse(responseCode = "404", description = "해당 이메일을 가진 회원이 없습니다.", content = @Content(mediaType = "application/json"))
-    })
-    @PatchMapping("/update-profile")
-    ResponseEntity<Void> updateProfile(
-            @RequestPart(required = false) MultipartFile image,
-            @RequestPart ProfileUpdateRequestDTO profileUpdateRequestDTO);
-
+//    @Operation(summary="프로필 업데이트", description= "프로필 업데이트 시 사용되는 api입니다.")
+//    @ApiResponses(value = {
+//            @ApiResponse(responseCode = "200", description = "프로필 업데이트에 성공하였습니다."),
+//            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다.", content = @Content(mediaType = "application/json")),
+//            @ApiResponse(responseCode = "404", description = "해당 이메일을 가진 회원이 없습니다.", content = @Content(mediaType = "application/json"))
+//    })
+//    @PatchMapping(value = "/update-profile", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_OCTET_STREAM_VALUE})
+//    ResponseEntity<Void> updateProfile(@RequestPart(value = "request") ProfileUpdateRequestDTO profileUpdateRequestDTO, @RequestPart(value = "image", required = false) MultipartFile image,
+//                                       HttpServletRequest request);
 
     @Operation(summary = "로그아웃", description = "현재 로그인된 사용자를 로그아웃합니다.")
     @ApiResponses(value = {
@@ -67,4 +66,16 @@ public interface UserController {
     })
     @PostMapping("/verify-code")
     ResponseEntity<String> verifyEmailCode(@RequestBody VerifyCodeRequestDTO requestDTO);
+
+    @Operation(summary = "프로필 업데이트", description = "프로필 업데이트 시 사용되는 API입니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "프로필 업데이트에 성공했습니다."),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자입니다.", content = @Content),
+            @ApiResponse(responseCode = "500", description = "서버 에러 발생", content = @Content)
+    })
+    @PatchMapping(value = "/update-profile",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<Void> updateProfile(
+            @RequestPart(value = "request") ProfileUpdateRequestDTO profileUpdateRequestDTO,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            HttpServletRequest request);
 }

@@ -3,10 +3,14 @@ package com.backend_potato.edubox_team2.domain.users.service;
 import com.backend_potato.edubox_team2.domain.users.entity.*;
 import com.backend_potato.edubox_team2.domain.users.repository.UserRepository;
 import com.backend_potato.edubox_team2.global.aws.S3ImageUploader;
+import com.backend_potato.edubox_team2.global.jwt.JwtFilter;
+import com.backend_potato.edubox_team2.global.jwt.JwtTokenUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -23,7 +27,9 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private static final String EMAIL_REGEX = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$";
     private final Map<String, String> accessTokenStore = new ConcurrentHashMap<>();
-    //private final JWTUtil jwtUtil;
+
+    private final JwtTokenUtil jwtTokenUtil;
+    private final JwtFilter jwtFilter;
     //private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @Transactional
@@ -68,8 +74,35 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void updateProfile(MultipartFile image, ProfileUpdateRequestDTO profileUpdateRequestDTO){
+    public void updateProfile(MultipartFile image, ProfileUpdateRequestDTO profileUpdateRequestDTO, HttpServletRequest request){
+//        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        String token = jwtFilter.resolveToken(request);
+        if (token == null) {
+            throw new IllegalArgumentException("Access token is missing or invalid");
+        }
+        String userEmail = jwtTokenUtil.getUserEmailFromToken(token);
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // Update the image URL if a new image is provided
+        if (image != null && !image.isEmpty()) {
+            String imageUrl = s3ImageUploader.upload(image);
+            user.setImage(imageUrl);
+        }
+
+        // Update other profile fields
+        if (profileUpdateRequestDTO.getNickname() != null) {
+            user.setNickname(profileUpdateRequestDTO.getNickname());
+        }
+        if (profileUpdateRequestDTO.getDiscription() != null) {
+            user.setDiscription(profileUpdateRequestDTO.getDiscription());
+        }
+        if (profileUpdateRequestDTO.getProfileAddress() != null) {
+            user.setPhone(profileUpdateRequestDTO.getProfileAddress());
+        }
+
+        // Save updated user information
+        userRepository.save(user);
     }
 
     @Override
@@ -97,6 +130,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public void removeAccessToken(String accessToken) {
         accessTokenStore.values().removeIf(token -> token.equals(accessToken));
+    }
+
+    @Override
+    public String saveProfileImage(MultipartFile profile) {
+        return s3ImageUploader.upload(profile);
     }
 
 
