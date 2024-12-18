@@ -5,6 +5,7 @@ import com.backend_potato.edubox_team2.domain.users.service.EmailService;
 import com.backend_potato.edubox_team2.domain.users.service.UserService;
 import com.backend_potato.edubox_team2.global.jwt.JwtFilter;
 import com.backend_potato.edubox_team2.global.jwt.JwtTokenUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -68,14 +70,36 @@ public class UserRestController implements UserController {
                 .body("로그인 성공");
     }
 
+//    @Override
+//    @PatchMapping(value = "/update-profile", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_OCTET_STREAM_VALUE})
+//    public ResponseEntity<Void> updateProfile(
+//            @RequestPart(value = "request") ProfileUpdateRequestDTO profileUpdateRequestDTO,
+//            @RequestPart(value = "image", required = false) MultipartFile image,
+//            HttpServletRequest request) {
+//
+//        try {
+//            userService.updateProfile(image, profileUpdateRequestDTO, request);
+//            return ResponseEntity.ok().build();
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+//        }
+//    }
+    @PatchMapping(value = "/update-profile",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> updateProfile(
+            @RequestPart(value = "request") ProfileUpdateRequestDTO profileUpdateRequestDTO,
+            @RequestPart(value = "image", required = false) MultipartFile image,
+            HttpServletRequest request) {
 
-
-    @Override
-    @PatchMapping("/update-profile")
-    public ResponseEntity<Void> updateProfile(@RequestPart(required = false) MultipartFile image,
-                                              @RequestPart ProfileUpdateRequestDTO profileUpdateRequestDTO) {
-        userService.updateProfile(image,profileUpdateRequestDTO);
-        return null;
+        try {
+            userService.updateProfile(image, profileUpdateRequestDTO, request);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
     @Override
     @PostMapping("/send-verification")
