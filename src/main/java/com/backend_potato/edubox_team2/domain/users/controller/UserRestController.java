@@ -30,6 +30,7 @@ public class UserRestController implements UserController {
 
     private final JwtFilter jwtFilter;
 
+
     public UserRestController(UserService userService, EmailService emailService, JwtTokenUtil jwtTokenUtil, JwtFilter jwtFilter) { // 생성자 명시적 선언
         this.userService = userService;
         this.emailService=emailService;
@@ -42,6 +43,16 @@ public class UserRestController implements UserController {
         userService.createUser(signupRequestDTO);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
+    @Override
+    @GetMapping("/verify-link")
+    public ResponseEntity<String> verifyLink(@RequestParam("token") String token) {
+        try {
+            String message = userService.verifyEmailLink(token);
+            return ResponseEntity.ok(message);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
 
     @Override
     @PostMapping("/login")
@@ -49,6 +60,9 @@ public class UserRestController implements UserController {
         User user = userService.authenticate(loginRequestDTO);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+        }
+        if (user.getRole() == Role.UNAUTH) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Email verification required. Check your email.");
         }
         String accessToken = jwtTokenUtil.generateAccessToken(user, 1000L*60*30);
         String refreshToken = jwtTokenUtil.generateRefreshToken(user, 1000L*60*60*24*15);
@@ -63,29 +77,12 @@ public class UserRestController implements UserController {
         // Access Token은 in-memory 저장소에 저장
         //userService.storeAccessToken(user.getEmail(), accessToken);
 
-        //return ResponseEntity.ok(accessToken);
         return ResponseEntity.ok()
                 .header("Authorization", "Bearer " + accessToken) // Access Token 헤더에 포함
                 .header("Set-Cookie", refreshCookie.toString())   // Refresh Token 쿠키 설정
                 .body("로그인 성공");
     }
-
-//    @Override
-//    @PatchMapping(value = "/update-profile", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE, MediaType.APPLICATION_OCTET_STREAM_VALUE})
-//    public ResponseEntity<Void> updateProfile(
-//            @RequestPart(value = "request") ProfileUpdateRequestDTO profileUpdateRequestDTO,
-//            @RequestPart(value = "image", required = false) MultipartFile image,
-//            HttpServletRequest request) {
-//
-//        try {
-//            userService.updateProfile(image, profileUpdateRequestDTO, request);
-//            return ResponseEntity.ok().build();
-//        } catch (IllegalArgumentException e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-//        }
-//    }
+    @Override
     @PatchMapping(value = "/update-profile",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> updateProfile(
             @RequestPart(value = "request") ProfileUpdateRequestDTO profileUpdateRequestDTO,
@@ -101,35 +98,17 @@ public class UserRestController implements UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-    @Override
-    @PostMapping("/send-verification")
-    public ResponseEntity<String> sendVerificationEmail(@RequestBody EmailVerificationRequestDTO requestDTO) {
-        emailService.sendVerificationCode(requestDTO.getEmail());
-        return ResponseEntity.ok("Verification email sent.");
-    }
 
-
-    @Override
-    @PostMapping("/verify-code")
-    public ResponseEntity<String> verifyEmailCode(@RequestBody VerifyCodeRequestDTO requestDTO) {
-        boolean isValid = emailService.verifyCode(requestDTO.getEmail(), requestDTO.getCode());
-        if (isValid) {
-            return ResponseEntity.ok("Email verified successfully.");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid verification code.");
-        }
-    }
 
     @Override
     @PostMapping("/logout")
     public ResponseEntity<String> logout(HttpServletRequest request, HttpServletResponse response) {
         String accessToken = jwtFilter.resolveToken(request);
 
-        if (accessToken != null) {
-            // Access Token 삭제
-            userService.removeAccessToken(accessToken);
+        if (accessToken == null || !jwtTokenUtil.isValidToken(accessToken)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("You are already logged out.");
         }
-
+        userService.removeAccessToken(accessToken);
         // Refresh Token 쿠키 삭제
         Cookie refreshCookie = new Cookie("refreshToken", null);
         refreshCookie.setHttpOnly(true);
@@ -140,4 +119,62 @@ public class UserRestController implements UserController {
         return ResponseEntity.ok("Logged out successfully");
     }
 
+    @PatchMapping("/restore/{email}")
+    public ResponseEntity<Void> restoreUser(@PathVariable("email") String email) {
+        try {
+            userService.restoreUser(email);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+        }
+    }
+    @DeleteMapping("/soft-delete")
+    public ResponseEntity<Void> softDeleteUser(HttpServletRequest request) {
+        try {
+            // JwtTokenUtil을 사용하여 토큰에서 이메일 추출
+            String email = jwtTokenUtil.getUserEmailFromToken(jwtFilter.resolveToken(request));
+            // Soft-Delete 수행
+            userService.softDeleteUserByEmail(email);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @Override
+    @GetMapping("/check-email")
+    public ResponseEntity<Boolean> checkEmailDuplicate(@RequestParam("email") String email) {
+        return ResponseEntity.ok().body(userService.existsByEmail(email));
+    }
+    @Override
+    @GetMapping("/check-nickname")
+    public ResponseEntity<Boolean> checkNicknameDuplicate(@RequestParam("nickname") String nickname){
+        return ResponseEntity.ok().body(userService.existsByNickname(nickname));
+    }
+
+    @Override
+    @GetMapping("/check-profileAddress")
+    public ResponseEntity<Boolean> checkProfileAddressDuplicate(@RequestParam("profileAddress") String profileAddress) {
+        return ResponseEntity.ok().body(userService.existsByProfileAddress(profileAddress));
+    }
+
+
+//    @PostMapping("/send-verification")
+//    public ResponseEntity<String> sendVerificationEmail(@RequestBody EmailVerificationRequestDTO requestDTO) {
+//        emailService.sendVerificationCode(requestDTO.getEmail());
+//        return ResponseEntity.ok("Verification email sent.");
+//    }
+//
+//
+//    @PostMapping("/verify-code")
+//    public ResponseEntity<String> verifyEmailCode(@RequestBody VerifyCodeRequestDTO requestDTO) {
+//        boolean isValid = emailService.verifyCode(requestDTO.getEmail(), requestDTO.getCode());
+//        if (isValid) {
+//            return ResponseEntity.ok("Email verified successfully.");
+//        } else {
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid verification code.");
+//        }
+//    }
 }

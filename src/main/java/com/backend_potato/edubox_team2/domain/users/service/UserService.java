@@ -11,16 +11,18 @@ import org.springframework.web.multipart.MultipartFile;
 public interface UserService {
 
     void createUser(SignupRequestDTO signupRequestDTO);
-
-    String getUserByEmailAndPw(LoginRequestDTO loginRequestDTO);
-
     void updateProfile(MultipartFile image, ProfileUpdateRequestDTO profileUpdateRequestDTO, HttpServletRequest request);
-    void storeAccessToken(String email, String accessToken);
-    boolean isValidAccessToken(String accessToken);
+
     User authenticate(LoginRequestDTO loginRequestDTO);
 
     void removeAccessToken(String accessToken);
-
-    String saveProfileImage(MultipartFile profile);
-
+    String verifyEmailLink(String token);
+    void softDeleteUserByEmail(String email);
+    void hardDeleteUsers();
+    void restoreUser(String email);
+    boolean existsByEmail(String email);
+    boolean existsByNickname(String nickname);
+    boolean existsByProfileAddress(String profileAddress);
+    void storeAccessToken(String email, String accessToken);
+    boolean isValidAccessToken(String accessToken);
 }

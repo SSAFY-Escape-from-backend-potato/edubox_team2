@@ -47,7 +47,8 @@ public class SecurityConfig {
                                 "/api/user/login",
                                 "/api/user/signup",
                                 "/api/user/verify-code",
-                                "/api/user/send-verification"
+                                "/api/user/send-verification",
+                                "/api/user/verify-link"
                         ).permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()

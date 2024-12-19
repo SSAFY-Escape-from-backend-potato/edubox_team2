@@ -16,13 +16,13 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository <User, Long>{
 
     Boolean existsByEmail(String email);
-
     Boolean existsByNickname(String nickname);
+    Boolean existsByProfileAddress(String profileAddress);
+
+    @Query("SELECT u FROM User u WHERE u.email = :email AND u.isDelete = false")
+    Optional<User> findActiveUserByEmail(@Param("email") String email);
 
     Optional<User> findByEmail(String email);
-
-    Optional<User> findByEmailAndPw(String email, String pw);
-
     @Query("SELECT u.pw FROM User u WHERE u.email = :email")
     String findPasswordByEmail(@Param("email") String email);
 
@@ -30,8 +30,16 @@ public interface UserRepository extends JpaRepository <User, Long>{
     @Query("UPDATE User u SET u.pw = :newPassword WHERE u.email = :email")
     void updatePassword(@Param("email") String email, @Param("newPassword") String newPassword);
 
-    @Query("SELECT u FROM User u WHERE u.isDelete = true AND u.createAt <= :cutoffDate")
-    List<User> findAllByIsDeleteTrueAndCreateAtBefore(@Param("cutoffDate") LocalDateTime cutoffDate);
 
-    //    void deleteAll(List<User> users);
+    @Query("SELECT u FROM User u WHERE u.isDelete = true AND u.deletedAt <= :cutoffDate")
+    List<User> findAllByIsDeleteTrueAndDeletedAtBefore(@Param("cutoffDate") LocalDateTime cutoffDate);
+
+//    void deleteAll(List<User> users);
+
+//    Optional<User> findByEmailAndPw(String email, String pw);
+
+
+//    @Query("SELECT u FROM User u WHERE u.isDelete = true AND u.createAt <= :cutoffDate")
+//    List<User> findAllByIsDeleteTrueAndCreateAtBefore(@Param("cutoffDate") LocalDateTime cutoffDate);
+
 }

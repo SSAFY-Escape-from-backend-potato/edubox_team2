@@ -10,10 +10,13 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mindrot.jbcrypt.BCrypt;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,6 +33,7 @@ public class UserServiceImpl implements UserService {
 
     private final JwtTokenUtil jwtTokenUtil;
     private final JwtFilter jwtFilter;
+    private final RedisTemplate<String, String> redisTemplate;
     //private final BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @Transactional
@@ -44,34 +48,19 @@ public class UserServiceImpl implements UserService {
         if (!signupRequestDTO.getPw().equals(signupRequestDTO.getConfirmPw())) {
             throw new IllegalArgumentException("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
         }
-        boolean isCodeValid = emailService.verifyCode(signupRequestDTO.getEmail(), signupRequestDTO.getVerificationCode());
-        if (!isCodeValid) {
-            throw new IllegalArgumentException("Invalid verification code.");
-        }
+
         String encodedPassword = BCrypt.hashpw(signupRequestDTO.getPw(), BCrypt.gensalt());
         User user = User.builder()
                 .email(signupRequestDTO.getEmail())
                 .pw(encodedPassword)
                 .nickname(signupRequestDTO.getEmail().split("@")[0])
-                .role(Role.USER)
+                .role(Role.UNAUTH) // 초기 권한을 UNAUTH로 설정
                 .build();
         userRepository.save(user);
+        emailService.sendVerificationLink(signupRequestDTO.getEmail());
     }
 
-    @Transactional
-    @Override
-    public String getUserByEmailAndPw(LoginRequestDTO loginRequestDTO) {
-        User user = userRepository.findByEmail(loginRequestDTO.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 잘못되었습니다."));
-        if (!BCrypt.checkpw(loginRequestDTO.getPw(), user.getPw())) {
-            throw new IllegalArgumentException("이메일 또는 비밀번호가 잘못되었습니다.");
-        }
-        String token = "토큰";
-        //String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
-        log.info("사용자 {}({})가 로그인했습니다.", user.getNickname(), user.getEmail());
 
-        return token;
-    }
 
     @Override
     public void updateProfile(MultipartFile image, ProfileUpdateRequestDTO profileUpdateRequestDTO, HttpServletRequest request){
@@ -105,19 +94,10 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
-    @Override
-    public void storeAccessToken(String email, String accessToken) {
-        accessTokenStore.put(email, accessToken);
-    }
-
-    @Override
-    public boolean isValidAccessToken(String accessToken) {
-        return accessTokenStore.containsValue(accessToken);
-    }
 
     @Override
     public User authenticate(LoginRequestDTO loginRequestDTO) {
-        Optional<User> optionalUser = userRepository.findByEmail(loginRequestDTO.getEmail());
+        Optional<User> optionalUser = userRepository.findActiveUserByEmail(loginRequestDTO.getEmail());
         if (optionalUser.isPresent()) {
             User user = optionalUser.get();
             if (BCrypt.checkpw(loginRequestDTO.getPw(), user.getPw())) {
@@ -133,14 +113,93 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public String saveProfileImage(MultipartFile profile) {
-        return s3ImageUploader.upload(profile);
+    @Transactional
+    public String verifyEmailLink(String token) {
+        String email = redisTemplate.opsForValue().get(token);
+        if (email == null) {
+            log.error("Invalid or expired token: {}", token);
+            throw new IllegalArgumentException("Invalid or expired token.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        if (user.getRole() != Role.UNAUTH) {
+            throw new IllegalStateException("Email already verified.");
+        }
+
+        user.setRole(Role.USER);
+        userRepository.save(user);
+        redisTemplate.delete(token);
+
+        log.info("Email verification successful for email: {}", email);
+        return "Email successfully verified. You can now log in.";
     }
 
+    @Transactional
+    @Override
+    public void softDeleteUserByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-//    @Override
-//    public void logout(String token) {
-//        jwtUtil.invalidateToken(token);
-//        log.info("토큰이 로그아웃되었습니다: {}", token);
-//    }
+        if (user.isDelete()) {
+            throw new IllegalStateException("User is already soft-deleted.");
+        }
+
+        // Soft-Delete 처리
+        user.setDelete(true);
+        user.setDeletedAt(LocalDateTime.now());
+        userRepository.save(user);
+    }
+
+    @Transactional
+    @Override
+    public void hardDeleteUsers() {
+        LocalDateTime cutoffDate = LocalDateTime.now().minusDays(90);
+        List<User> usersToDelete = userRepository.findAllByIsDeleteTrueAndDeletedAtBefore(cutoffDate);
+        userRepository.deleteAll(usersToDelete);
+    }
+
+    @Transactional
+    @Override
+    public void restoreUser(String email) {
+        Optional<User> optionalUser = userRepository.findByEmail(email);
+        if (optionalUser.isPresent()) {
+            User user = optionalUser.get();
+            if (!user.isDelete()) {
+                throw new IllegalStateException("User is already active.");
+            }
+            user.setDelete(false);
+            user.setDeletedAt(null); // 삭제 상태가 아니므로 null로 변경
+            userRepository.save(user);
+        }
+    }
+
+    @Transactional
+    @Override
+    public boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
+    }
+    @Transactional
+    @Override
+    public boolean existsByNickname(String nickname) {
+        return userRepository.existsByNickname(nickname);
+    }
+
+    @Override
+    public boolean existsByProfileAddress(String profileAddress) {
+        return userRepository.existsByProfileAddress(profileAddress);
+    }
+
+    @Transactional
+    @Override
+    public void storeAccessToken(String email, String accessToken) {
+        accessTokenStore.put(email, accessToken);
+    }
+
+    @Transactional
+    @Override
+    public boolean isValidAccessToken(String accessToken) {
+        return accessTokenStore.containsValue(accessToken);
+    }
+
 }
