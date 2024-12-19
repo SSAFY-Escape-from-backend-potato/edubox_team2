@@ -51,6 +51,9 @@ public class User {
     @Column(name = "create_at", nullable = false, updatable = false)
     private LocalDateTime createAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @ColumnDefault("false")
     private boolean isDelete;
 }
