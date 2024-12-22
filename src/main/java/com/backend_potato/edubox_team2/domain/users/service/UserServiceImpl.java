@@ -60,8 +60,6 @@ public class UserServiceImpl implements UserService {
         emailService.sendVerificationLink(signupRequestDTO.getEmail());
     }
 
-
-
     @Override
     public void updateProfile(MultipartFile image, ProfileUpdateRequestDTO profileUpdateRequestDTO, HttpServletRequest request){
 //        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
