@@ -64,8 +64,8 @@ public class UserRestController implements UserController {
         if (user.getRole() == Role.UNAUTH) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Email verification required. Check your email.");
         }
-        String accessToken = jwtTokenUtil.generateAccessToken(user, 1000L*60*30);
-        String refreshToken = jwtTokenUtil.generateRefreshToken(user, 1000L*60*60*24*15);
+        String accessToken = jwtTokenUtil.generateAccessToken(user);
+        String refreshToken = jwtTokenUtil.generateRefreshToken(user);
 
         // Refresh Token 쿠키 설정
         Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
