@@ -20,9 +20,9 @@ public class JwtTokenUtil {
     private final SecretKey SECRET_KEY;
     private final Logger logger = LoggerFactory.getLogger(JwtTokenUtil.class);
     @Value("${spring.auth.jwt.accessExpireMs}")
-    private Long accessExpireTime;
+    private String accessExpireTime;
     @Value("${spring.auth.jwt.refreshExpireMs}")
-    private Long refreshExpireTime;
+    private String refreshExpireTime;
 
 
     public JwtTokenUtil(@Value("${spring.auth.jwt.secretKey}") String secretKey) {
@@ -43,11 +43,11 @@ public class JwtTokenUtil {
     }
 
     public String generateAccessToken(User user) {
-        return generateToken(user, "access", accessExpireTime);
+        return generateToken(user, "access", Long.parseLong(accessExpireTime));
     }
 
     public String generateRefreshToken(User user) {
-        return generateToken(user, "refresh", refreshExpireTime);
+        return generateToken(user, "refresh", Long.parseLong(refreshExpireTime));
     }
 
     public Claims parseClaims(String token) {

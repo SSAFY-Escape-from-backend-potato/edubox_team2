@@ -57,7 +57,7 @@ public class SecurityConfig {
                 )
                 // JWT 필터 추가
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .oauth2Login(Customizer.withDefaults());;
+                .oauth2Login(Customizer.withDefaults());
 
         return http.build();
     }

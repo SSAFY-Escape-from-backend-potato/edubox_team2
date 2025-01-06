@@ -135,6 +135,14 @@
 			<version>5.0.0</version>
 		</dependency>
 
+<!--		&lt;!&ndash; https://mvnrepository.com/artifact/mysql/mysql-connector-java &ndash;&gt;-->
+<!--		<dependency>-->
+<!--			<groupId>mysql</groupId>-->
+<!--			<artifactId>mysql-connector-java</artifactId>-->
+<!--			<version>8.0.33</version>-->
+<!--		</dependency>-->
+
+
 		<!-- QueryDSL JPA -->
 		<dependency>
 			<groupId>com.querydsl</groupId>

@@ -22,29 +22,47 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 
 @Service
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 public class KakaoServiceImpl implements KakaoService{
 
     private final UserRepository userRepository;
     private final JwtTokenUtil jwtTokenUtil;
 
-    @Value("${kakao.key.clientId}")
+    public KakaoServiceImpl(UserRepository userRepository, JwtTokenUtil jwtTokenUtil){
+        this.userRepository = userRepository;
+        this.jwtTokenUtil = jwtTokenUtil;
+    }
+
+    @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
-    @Value("${kakao.redirectUrl}")
-    private String redirectUrl;
+    @Value("${spring.security.oauth2.client.registration.kakao.redirect-uri}")
+    private String redirectUri;
+    @Value("${spring.security.oauth2.client.provider.kakao.authorization-uri}")
+    private String authorizationUri;
+    @Value("${spring.security.oauth2.client.provider.kakao.token-uri}")
+    private String tokenUri;
+    @Value("${spring.security.oauth2.client.provider.kakao.user-info-uri}")
+    private String userInfoUri;
+    @Value("${spring.security.oauth2.client.registration.kakao.client-secret}")
+    private String clientSecret;
 
     @Override
     public KakaoLoginResponseDTO login(String code, String currentDomain) {
-        String redirectUri = currentDomain+"api/user/oauth/kakao";
+        String redirectUri = "http://"+currentDomain+":8080/api/user/oauth/kakao";
+//        System.out.println("인가코드임: "+code);
         String accessToken = getAccessToken(code, redirectUri);
-        return null;
+//        System.out.println("토큰 받았당: "+accessToken);
+        HashMap<String, Object> userInfo = getUserInfo(accessToken);
+//        System.out.println("유저정보: "+userInfo);
+        KakaoLoginResponseDTO kakaoUserResponse = loginKakaoUser(userInfo);
+        return kakaoUserResponse;
     }
 
     @Override
     public String getAccessToken(String code, String redirectUri) {
         // HTTP Header 생성
         HttpHeaders headers = new HttpHeaders();
-        headers.add("Content-type", "application/x-www-form-urlencoded;charset=utf-8");
+        headers.add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8");
 
         // HTTP Body 생성
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
@@ -52,12 +70,16 @@ public class KakaoServiceImpl implements KakaoService{
         body.add("client_id", clientId);
         body.add("redirect_uri", redirectUri);
         body.add("code", code);
+        body.add("client_secret",clientSecret); //이거 추가하니까 code_challenge 사라짐!
 
         //HTTP 요청
         HttpEntity<MultiValueMap<String,String>> kakaoTokenRequest = new HttpEntity<>(body, headers);
+
+
+
         RestTemplate restTemplate = new RestTemplate();
         ResponseEntity<String> response = restTemplate.exchange(
-                "https://kauth.kakao.com/oauth/token",
+                tokenUri,
                 HttpMethod.POST,
                 kakaoTokenRequest,
                 String.class
@@ -128,6 +150,7 @@ public class KakaoServiceImpl implements KakaoService{
                     .image(imageUrl)
                     .nickname(nickname)
                     .email(email)
+                    .pw("kakaoUser")
                     .role(Role.USER)
                     .build();
             userRepository.save(user);

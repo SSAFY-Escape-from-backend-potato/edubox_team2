@@ -89,12 +89,12 @@ public class UserRestController implements UserController {
     public ResponseEntity<KakaoLoginResponseDTO> kakaoLogin(@RequestParam("code") String code, HttpServletRequest request){
         try{
             String currentDomain = request.getServerName();
+            System.out.println(request.getContextPath());
             return ResponseEntity.ok(kakaoService.login(code, currentDomain));
         }catch(NullPointerException e){
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "올바르지 않은 유저입니다.");
         }
     }
-
 
     @Override
     @PatchMapping(value = "/update-profile",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
