@@ -38,6 +38,12 @@ public interface UserController {
     @PostMapping("/login")
     ResponseEntity<String> getUserByEmailAndPw(@RequestBody @Valid LoginRequestDTO loginRequestDTO, HttpServletResponse response);
 
+    @Operation(summary="카카오 로그인", description= "사용자 kakao 로그인 시 사용되는 api입니다.")
+    @ApiResponse(responseCode = "201", description = "로그인에 성공하였습니다.")
+    @GetMapping("/oauth/kakao")
+    ResponseEntity<KakaoLoginResponseDTO> kakaoLogin(@RequestParam("code") String code, HttpServletRequest request);
+
+
     @Operation(summary = "로그아웃", description = "현재 로그인된 사용자를 로그아웃합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "로그아웃에 성공했습니다."),

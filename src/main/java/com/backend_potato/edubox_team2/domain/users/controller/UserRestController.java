@@ -2,21 +2,21 @@ package com.backend_potato.edubox_team2.domain.users.controller;
 
 import com.backend_potato.edubox_team2.domain.users.entity.*;
 import com.backend_potato.edubox_team2.domain.users.service.EmailService;
+import com.backend_potato.edubox_team2.domain.users.service.KakaoService;
 import com.backend_potato.edubox_team2.domain.users.service.UserService;
 import com.backend_potato.edubox_team2.global.jwt.JwtFilter;
 import com.backend_potato.edubox_team2.global.jwt.JwtTokenUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/user")
@@ -26,14 +26,15 @@ public class UserRestController implements UserController {
 
     private final UserService userService;
     private final EmailService emailService;
+    private final KakaoService kakaoService;
     private final JwtTokenUtil jwtTokenUtil;
-
     private final JwtFilter jwtFilter;
 
 
-    public UserRestController(UserService userService, EmailService emailService, JwtTokenUtil jwtTokenUtil, JwtFilter jwtFilter) { // 생성자 명시적 선언
+    public UserRestController(UserService userService, EmailService emailService, KakaoService kakaoService, JwtTokenUtil jwtTokenUtil, JwtFilter jwtFilter) { // 생성자 명시적 선언
         this.userService = userService;
         this.emailService=emailService;
+        this.kakaoService=kakaoService;
         this.jwtTokenUtil=jwtTokenUtil;
         this.jwtFilter=jwtFilter;
     }
@@ -64,8 +65,8 @@ public class UserRestController implements UserController {
         if (user.getRole() == Role.UNAUTH) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Email verification required. Check your email.");
         }
-        String accessToken = jwtTokenUtil.generateAccessToken(user, 1000L*60*30);
-        String refreshToken = jwtTokenUtil.generateRefreshToken(user, 1000L*60*60*24*15);
+        String accessToken = jwtTokenUtil.generateAccessToken(user);
+        String refreshToken = jwtTokenUtil.generateRefreshToken(user);
 
         // Refresh Token 쿠키 설정
         Cookie refreshCookie = new Cookie("refreshToken", refreshToken);
@@ -82,6 +83,19 @@ public class UserRestController implements UserController {
                 .header("Set-Cookie", refreshCookie.toString())   // Refresh Token 쿠키 설정
                 .body("로그인 성공");
     }
+
+    @Override
+    @GetMapping("/oauth/kakao")
+    public ResponseEntity<KakaoLoginResponseDTO> kakaoLogin(@RequestParam("code") String code, HttpServletRequest request){
+        try{
+            String currentDomain = request.getServerName();
+            System.out.println(request.getContextPath());
+            return ResponseEntity.ok(kakaoService.login(code, currentDomain));
+        }catch(NullPointerException e){
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "올바르지 않은 유저입니다.");
+        }
+    }
+
     @Override
     @PatchMapping(value = "/update-profile",consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> updateProfile(
