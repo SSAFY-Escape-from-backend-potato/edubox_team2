@@ -77,9 +77,12 @@ public class UserRestController implements UserController {
         // Access Token은 in-memory 저장소에 저장
         //userService.storeAccessToken(user.getEmail(), accessToken);
 
+//        return ResponseEntity.ok()
+//                .header("Authorization", "Bearer " + accessToken) // Access Token 헤더에 포함
+//                .header("Set-Cookie", refreshCookie.toString())   // Refresh Token 쿠키 설정
+//                .body("로그인 성공");
         return ResponseEntity.ok()
                 .header("Authorization", "Bearer " + accessToken) // Access Token 헤더에 포함
-                .header("Set-Cookie", refreshCookie.toString())   // Refresh Token 쿠키 설정
                 .body("로그인 성공");
     }
     @Override

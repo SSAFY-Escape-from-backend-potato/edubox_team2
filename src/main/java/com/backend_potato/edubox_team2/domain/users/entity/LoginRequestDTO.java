@@ -4,9 +4,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class LoginRequestDTO {
     @Schema(description = "회원 이메일", example = "spancer1@naver.com")
     @NotBlank(message = "이메일은 필수 항목입니다.")
